@@ -1614,8 +1614,9 @@ def _do_create_account(form, custom_form=None, site=None):
         log.exception("UserProfile creation failed for user {id}.".format(id=user.id))
         raise
     #added to create the record in languageProficiency table
-    profile.language_proficiencies.create(code=form.cleaned_data.get("language"))
-    profile.save()
+    if form.cleaned_data.get("language") != None:
+        profile.language_proficiencies.create(code=form.cleaned_data.get("language"))
+        profile.save()
 
     return (user, profile, registration)
 
