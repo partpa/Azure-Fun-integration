@@ -79,7 +79,6 @@ class LoginEnrollmentTestCase(TestCase):
             'username': username,
             'email': email,
             'password': password,
-            'language': 'en',
             'name': 'username',
             'terms_of_service': 'true',
             'honor_code': 'true',
