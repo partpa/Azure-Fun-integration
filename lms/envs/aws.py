@@ -916,9 +916,9 @@ if _COUNTRIES_OVERRIDE:
 ALL_LANGUAGES_OVERRIDE = ENV_TOKENS.get('ALL_LANGUAGES_OVERRIDE', None)
 if ALL_LANGUAGES_OVERRIDE:
     for code, language in ALL_LANGUAGES_OVERRIDE.iteritems():
-         if language is None or language == "null":
-              del ALL_LANGUAGES_DICT[code]
-         elif code not in ALL_LANGUAGES_DICT:
-              ALL_LANGUAGES_DUPLICATE = ALL_LANGUAGES_DUPLICATE + ([code, language],)
-              ALL_LANGUAGES_DICT[code] = language
+        if language is None or language == "null":
+            del ALL_LANGUAGES_DICT[code]
+        elif code not in ALL_LANGUAGES_DICT:
+            ALL_LANGUAGES_DUPLICATE = ALL_LANGUAGES_DUPLICATE + ([code, language],)
+            ALL_LANGUAGES_DICT[code] = language
     ALL_LANGUAGES_DICT = OrderedDict(sorted(ALL_LANGUAGES_DICT.items(), key=itemgetter(1)))
