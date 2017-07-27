@@ -10,6 +10,14 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.response import Response
 
+#TODO Added these imports
+from collections import defaultdict
+from datetime import datetime, timedelta
+from django.db.models import Count, F
+from courseware.models import StudentModule
+
+from django.contrib.auth import get_user_model
+
 from courseware.access import has_access
 from lms.djangoapps.ccx.utils import prep_course_for_grading
 from lms.djangoapps.courseware import courses
@@ -194,6 +202,94 @@ class UserGradeView(GradeViewMixin, GenericAPIView):
             'letter_grade': course_grade.letter_grade,
         }])
 
+# TODO Platform Addition, LD Route to sync user grades by an organization
+class BulkGradesView(GradeViewMixin, GenericAPIView):
+
+    """
+    **Use Case**
+        Get all grades for all users enrolled in courses
+        that are associated with the given organization
+    **Example requests**
+        POST /api/grades/v0/user_grades/
+        ** NOTE: Temporarily this will be a post request in order to pass data
+        **       through the request body (i.e. there will be a lot of usernames)
+    **Example Response**
+        [{
+            username: 'kakh',
+            course_id: 'edx-DemoX-DemoCourse',
+            course_details: {
+                id,
+                name,
+                etc...
+            },
+            grade: {
+                percent: 77,
+                passed: true
+            }
+        }]
+    """
+
+    def get(self, request):
+        organizations = request.GET.get('organizations')
+        time_delta = request.GET.get('time_delta')
+
+        if type(organizations) == str:
+            organizations = set(organizations.strip(',').split(','))
+
+        try:
+            time_delta = timedelta(minutes=int(time_delta))
+        except:
+            time_delta = timedelta(minutes=20000)
+
+        time_threshold = datetime.now() - time_delta
+        grade_impacting_modules = StudentModule.all_recently_submitted_grade_impacting_problems(time_threshold)
+        students_needing_grading_by_course = defaultdict(list)
+
+        for module in grade_impacting_modules:
+            if (organizations):
+                course_key = CourseKey.from_string(module.course_id)
+                if (course_key.org in organizations):
+                    students_needing_grading_by_course[module.course_id].append(module.student_id)
+            else:
+                #raise ValueError("student_email:{}".format(module.student_id))
+                students_needing_grading_by_course[module.course_id].append(module.student_id)
+
+        res = defaultdict(dict)
+        print "Printing"
+        USER_MODEL = get_user_model()
+#       raise ValueError("Grade Impacting Problems: {}".format(students_needing_grading_by_course))
+        for course_id, student_ids in students_needing_grading_by_course.iteritems():
+            #print ("*******************************************************************")
+            #raise ValueError("error:{}".format(course.user))
+            #course = self.get(course_id)
+            print(course_id)
+            print(student_ids)
+            print(course_id._to_string())
+            course = self._get_course(str(course_id), request.user, 'load')
+            #print(course)
+            #for i in course:
+            #raise ValueError("error:{}".format(course_id._to_string()))
+
+            #if course == None or course == '':
+            #raise ValueError("error:{}".format(course_id))
+            #raise  ValueError("new_error:{}".format(course.course_key))
+
+            if organizations and not course.org in organizations:
+                continue
+
+            res[course_id] = { student.email: {
+                    'passed': course_grade.passed,
+                    'course': course.display_name,
+                    'percent': course_grade.percent,
+                    'letter': course_grade.letter_grade
+                } for student, course_grade, err_msg in CourseGradeFactory().iter(course, USER_MODEL.objects.filter(id__in=set(student_ids)))
+                if course_grade.percent > 0
+            }
+
+        # clean up response by removing courses without new grades
+        res = {str(k): v for k, v in res.items() if v}
+
+        return Response(res)
 
 class CourseGradingPolicy(GradeViewMixin, ListAPIView):
     """

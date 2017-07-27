@@ -20,6 +20,10 @@ from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
 
+from collections import defaultdict
+from datetime import datetime, timedelta
+from django.db.models import Count, F
+
 from model_utils.models import TimeStampedModel
 import coursewarehistoryextended
 
@@ -127,6 +131,31 @@ class StudentModule(models.Model):
             module_type='problem',
             grade__isnull=False
         )
+        if "read_replica" in settings.DATABASES:
+            return queryset.using("read_replica")
+        else:
+            return queryset
+
+    @classmethod
+    def all_recently_submitted_grade_impacting_problems(
+            cls,
+            time_threshold=datetime.now() - timedelta(hours=1)
+    ):
+        """
+        Return all model instances that correspond to grade impacting problems that have been
+        submitted for a particular organization within a recent time period (default last 1 hour).
+        So module_type='problem' and a non-null + non-zero grade
+        Use a read replica if one exists for this environment.
+        """
+        queryset = cls.objects.filter(
+            modified__gt=time_threshold,
+            module_type='problem',
+            grade__isnull=False
+        ).exclude(grade=0).annotate(
+            course_count=models.Count('course_id'),
+            student_count=models.Count('student_id')
+        ).order_by('course_id')
+
         if "read_replica" in settings.DATABASES:
             return queryset.using("read_replica")
         else:

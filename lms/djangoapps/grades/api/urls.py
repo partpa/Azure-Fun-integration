@@ -21,4 +21,9 @@ urlpatterns = patterns(
         ),
         views.CourseGradingPolicy.as_view(), name='course_grading_policy'
     ),
+    url(
+       r'v0/user_grades/$',
+        views.BulkGradesView.as_view(), name='bulk_grades_view'
+    )
+
 )
